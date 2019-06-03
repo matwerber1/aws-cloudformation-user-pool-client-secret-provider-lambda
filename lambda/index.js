@@ -133,7 +133,7 @@ exports.handler = async function (event, context, callback) {
             };
 
             if (deleteImmediately === false) {
-                pardeleteParamsams.RecoveryWindowInDays = 7;
+                deleteParams.RecoveryWindowInDays = 7;
             } else {
                 deleteParams.ForceDeleteWithoutRecovery = true;
             }
