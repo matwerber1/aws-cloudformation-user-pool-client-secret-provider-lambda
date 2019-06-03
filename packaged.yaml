@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'Cognito User Pool Client Secret Provider Example Template
+
+  '
+Resources:
+  UserPoolClientSecret:
+    Type: Custom::UserPoolClientSecret
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+        - UserPoolClientSecretProvider
+        - Arn
+      UserPoolId:
+        Ref: CognitoUserPool
+      AppClientId:
+        Ref: CognitoAppClient
+  UserPoolClientSecretProvider:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs10.x
+      CodeUri: s3://werberm-sandbox/3f673a998049a2b684afed5191df8d51
+      MemorySize: 128
+      Timeout: 10
+      Policies:
+      - Version: '2012-10-17'
+        Statement:
+        - Sid: CognitoPermissions
+          Effect: Allow
+          Action:
+          - cognito-idp:DescribeUserPoolClient
+          Resource:
+          - '*'
+        - Sid: SecretsManagerPermissions
+          Effect: Allow
+          Action:
+          - secretsmanager:CreateSecret
+          - secretsmanager:TagResource
+          - secretsmanager:UpdateSecret
+          - secretsmanager:DeleteSecret
+          Resource:
+          - '*'
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      UsernameAttributes:
+      - email
+  CognitoAppClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      GenerateSecret: true
+      UserPoolId:
+        Ref: CognitoUserPool
+Outputs:
+  UserPoolClientSecretArn:
+    Description: The app client secret ARN for Alexa.
+    Value:
+      Fn::GetAtt:
+      - UserPoolClientSecret
+      - SecretArn
+  UserPoolClientSecretName:
+    Description: The app client secret name for Alexa.
+    Value:
+      Fn::GetAtt:
+      - UserPoolClientSecret
+      - SecretName
+  UserPoolAppClientSecretLink:
+    Description: "Paste this URL in the browser to view the AWS Secrets Manager secret\
+      \ containing the value of the Cognito app client secret for Alexa integration.\
+      \ Scroll down, click 'Retrieve secret value', and use the value of the 'clientSecret'\
+      \ key. \n"
+    Value:
+      Fn::Join:
+      - ''
+      - - https://
+        - Ref: AWS::Region
+        - .console.aws.amazon.com/secretsmanager/home?region=
+        - Ref: AWS::Region
+        - '#/secret?name='
+        - Fn::GetAtt:
+          - UserPoolClientSecret
+          - SecretName

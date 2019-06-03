@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Cognito User Pool Client Secret Provider Example Template
+
+Resources:
+
+  # This is our key deliverable; the properties of this resource will include:
+  # - SecretName
+  # - SecretArn
+  # - SeccretVersionId
+  UserPoolClientSecret:
+    Type: 'Custom::UserPoolClientSecret'
+    Properties:
+      ServiceToken: !GetAtt UserPoolClientSecretProvider.Arn
+      UserPoolId:  !Ref CognitoUserPool
+      AppClientId: !Ref CognitoAppClient
+
+  # The permissions need to be scoped down to target specific Cognito and 
+  # Secrets Manager resources; right now, the policies below are too permissive. 
+  UserPoolClientSecretProvider:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs10.x
+      CodeUri: lambda/
+      MemorySize: 128
+      Timeout: 10
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+          - 
+            Sid: "CognitoPermissions"
+            Effect: Allow
+            Action: 
+              - 'cognito-idp:DescribeUserPoolClient'
+            Resource:
+              - '*'
+          - 
+            Sid: "SecretsManagerPermissions"
+            Effect: Allow
+            Action: 
+              - 'secretsmanager:CreateSecret'
+              - 'secretsmanager:TagResource'
+              - 'secretsmanager:UpdateSecret'
+              - 'secretsmanager:DeleteSecret'
+            Resource:
+              - '*'
+
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties: 
+      AdminCreateUserConfig: 
+        AllowAdminCreateUserOnly: true  # Since this is only for demoing the custom resource, don't allow users to sign themselves up
+      UsernameAttributes: 
+        - 'email'
+
+  CognitoAppClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties: 
+      GenerateSecret: true
+      UserPoolId: !Ref CognitoUserPool
+
+Outputs:
+
+  UserPoolClientSecretArn:
+    Description: The app client secret ARN for Alexa. 
+    Value: !GetAtt UserPoolClientSecret.SecretArn
+
+  UserPoolClientSecretName:
+    Description: The app client secret name for Alexa. 
+    Value: !GetAtt UserPoolClientSecret.SecretName
+
+  UserPoolAppClientSecretLink:
+    Description: >
+      Paste this URL in the browser to view the AWS Secrets Manager secret
+      containing the value of the Cognito app client secret for Alexa
+      integration. Scroll down, click 'Retrieve secret value', and use the
+      value of the 'clientSecret' key. 
+    Value: 
+      Fn::Join:
+        - ""
+        - - "https://"
+          - !Ref "AWS::Region"
+          - ".console.aws.amazon.com/secretsmanager/home?region="
+          - !Ref "AWS::Region"
+          - "#/secret?name="
+          - !GetAtt UserPoolClientSecret.SecretName
